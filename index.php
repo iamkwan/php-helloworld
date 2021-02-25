@@ -131,6 +131,18 @@ function processMessage($message) {
     } else {
         apiRequestWebhook("editMessageText", array('chat_id' => $chat_id, "message_id" => $process_message['message_id'], "text" => '上傳失敗'));
     }
+  } else if (isset($message['document'])) {
+    if (checkFileType($message['document']['mime_type'])) {
+      $process_message = apiRequest("sendMessage", array('chat_id' => $chat_id, "reply_to_message_id" => $message_id, "text" => '上傳中...'));
+      $process_document = processDocument($chat_id, $message['document']);
+      if ($process_document) {
+        apiRequestWebhook("editMessageText", array('chat_id' => $chat_id, "message_id" => $process_message['message_id'], "text" => $process_document, "disable_web_page_preview" => true));
+      } else {
+        apiRequestWebhook("editMessageText", array('chat_id' => $chat_id, "message_id" => $process_message['message_id'], "text" => '上傳失敗'));
+      }
+    } else {
+      apiRequestWebhook("sendMessage", array('chat_id' => $chat_id, "reply_to_message_id" => $message_id, "text" => '只接受 JPG, JPEG, GIF, PNG, BMP'));
+    }
   } else {
     $text = <<<EOF
 *歡迎使用 Upload.cc Bot\n*
@@ -157,6 +169,16 @@ EOF;
 
 function processPhoto($chat_id, $photo) {
   $file_id = $photo[sizeof($photo)-1]['file_id'];
+  $result = apiRequestJson("getFile", array('file_id' => $file_id));
+  $extension = strtolower(substr($result['file_path'], strrpos($result['file_path'], '.')+1));
+  $file_name = generateRandomString();
+  $full_file_path = UPLOAD_FOLDER.$file_name.'.'.$extension;
+  $put_file = file_put_contents('/'.$file_name.'.'.$extension, file_get_contents(API_FILE_URL.$result['file_path']));
+  return ROOT_URL.$full_file_path;
+}
+
+function processDocument($chat_id, $document) {
+  $file_id = $document['file_id'];
   $result = apiRequestJson("getFile", array('file_id' => $file_id));
   $extension = strtolower(substr($result['file_path'], strrpos($result['file_path'], '.')+1));
   $file_name = generateRandomString();
