@@ -3,6 +3,6 @@
   <title>PHP Test</title>
  </head>
  <body>
- <?php echo getenc('TEST'); ?> 
+ <?php echo getenv('TEST'); ?> 
  </body>
 </html>
