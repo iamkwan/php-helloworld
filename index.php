@@ -120,6 +120,68 @@ function apiRequestJson($method, $parameters) {
   return exec_curl_request($handle);
 }
 
+function processMessage($message) {
+  $message_id = $message['message_id'];
+  $chat_id = $message['chat']['id'];
+  if (isset($message['photo'])) {
+    $process_message = apiRequest("sendMessage", array('chat_id' => $chat_id, "reply_to_message_id" => $message_id, "text" => '上傳中...'));
+    $process_photo = processPhoto($chat_id, $message['photo']);
+    if ($process_photo) {
+        apiRequestWebhook("editMessageText", array('chat_id' => $chat_id, "message_id" => $process_message['message_id'], "text" => $process_photo, "disable_web_page_preview" => true));
+    } else {
+        apiRequestWebhook("editMessageText", array('chat_id' => $chat_id, "message_id" => $process_message['message_id'], "text" => '上傳失敗'));
+    }
+  } else {
+    $text = <<<EOF
+*歡迎使用 Upload.cc Bot\n*
+*使用條款*
+• https://upload.cc/terms\n
+*上傳限制 (<10 MB)*
+• JPG, JPEG, GIF, PNG, BMP\n
+*傳送圖片方法*
+• Send as Photo (會壓縮圖片)
+• Send as File (不會壓縮圖片)\n
+*指令*
+• /my - 上傳記錄
+• /help - 顯示此訊息
+EOF;
+  $buttons = [
+    [
+      ['text' => "上傳記錄", 'callback_data' => "history"],
+      ['text' => "贊助我們", 'url' => "https://www.buymeacoffee.com/uploadcc"]
+    ]
+  ];
+  apiRequestWebhook("sendMessage", array('chat_id' => $chat_id, "reply_to_message_id" => $message_id, "text" => $text, "reply_markup" => make_inline_keyboard($buttons), "parse_mode" => "Markdown"));
+  }
+}
+
+function processPhoto($chat_id, $photo) {
+  $file_id = $photo[sizeof($photo)-1]['file_id'];
+  $result = apiRequestJson("getFile", array('file_id' => $file_id));
+  $extension = strtolower(substr($result['file_path'], strrpos($result['file_path'], '.')+1));
+  $file_name = generateRandomString();
+  $full_file_path = UPLOAD_FOLDER.$file_name.'.'.$extension;
+  $put_file = file_put_contents('/'.$file_name.'.'.$extension, file_get_contents(API_FILE_URL.$result['file_path']));
+  return ROOT_URL.$full_file_path;
+}
+
+function make_inline_keyboard($buttons) {
+  $keyboard = [
+    'inline_keyboard' => $buttons
+  ];
+  return $keyboard;
+}
+
+function generateRandomString($length = 6) {
+    $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    $charactersLength = strlen($characters);
+    $randomString = '';
+    for ($i = 0; $i < $length; $i++) {
+        $randomString .= $characters[rand(0, $charactersLength - 1)];
+    }
+    return $randomString;
+}
+
 $content = file_get_contents("php://input");
 $update = json_decode($content, true);
 
@@ -128,11 +190,7 @@ if (!$update) {
 }
 
 if (isset($update["message"])) {
-  $message = $update["message"];
-  $message_id = $message['message_id'];
-  $chat_id = $message['chat']['id'];
-  $text = "hello world!";
-  apiRequestWebhook("sendMessage", array('chat_id' => $chat_id, "reply_to_message_id" => $message_id, "text" => $text));
+  processMessage($update["message"]);
 }
 
 ?>
