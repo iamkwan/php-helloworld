@@ -187,6 +187,11 @@ function processDocument($chat_id, $document) {
   return ROOT_URL.$full_file_path;
 }
 
+function checkFileType($mime_type) {
+    $image_type = array('image/jpeg', 'image/png', 'image/gif', 'image/bmp');
+    return in_array($mime_type, $image_type);
+}
+
 function make_inline_keyboard($buttons) {
   $keyboard = [
     'inline_keyboard' => $buttons
